@@ -27,7 +27,7 @@
           )?
           .takeUnretainedValue()
       else {
-        if !_XCTIsTesting {
+        if #available(macOS 10.14, iOS 12.0, watchOS 5.0, tvOS 12.0, *), !_XCTIsTesting {
           runtimeWarn(message)
         }
         return

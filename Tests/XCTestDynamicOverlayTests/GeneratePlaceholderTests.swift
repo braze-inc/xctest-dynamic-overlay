@@ -25,16 +25,18 @@
       let set: () -> Set<Int> = unimplemented("set")
       XCTAssertEqual(XCTExpectFailure(failingBlock: set), Set<Int>())
 
-      let stream: () -> AsyncStream<Int> = unimplemented("stream")
-      for await _ in XCTExpectFailure(failingBlock: stream) {
-        XCTFail("Stream should be finished")
-      }
+      if #available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *) {
+        let stream: () -> AsyncStream<Int> = unimplemented("stream")
+        for await _ in XCTExpectFailure(failingBlock: stream) {
+          XCTFail("Stream should be finished")
+        }
 
-      let throwingStream: () -> AsyncThrowingStream<Int, Error> = unimplemented("throwingStream")
-      let result = await Task {
-        try await XCTExpectFailure(failingBlock: throwingStream).first(where: { _ in true })
-      }.result
-      XCTAssertThrowsError(try result.get()) { XCTAssertTrue($0 is CancellationError) }
+        let throwingStream: () -> AsyncThrowingStream<Int, Error> = unimplemented("throwingStream")
+        let result = await Task {
+          try await XCTExpectFailure(failingBlock: throwingStream).first(where: { _ in true })
+        }.result
+        XCTAssertThrowsError(try result.get()) { XCTAssertTrue($0 is CancellationError) }
+      }
 
       let date: () -> Date = unimplemented("date")
       XCTAssertNotNil(XCTExpectFailure(failingBlock: date))
