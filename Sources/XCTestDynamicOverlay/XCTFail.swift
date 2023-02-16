@@ -1,7 +1,7 @@
+import Foundation
+
 #if DEBUG
   #if canImport(ObjectiveC)
-    import Foundation
-
     /// This function generates a failure immediately and unconditionally.
     ///
     /// Dynamically creates and records an `XCTIssue` under the hood that captures the source code
@@ -12,6 +12,8 @@
     ///   results.
     @_disfavoredOverload
     public func XCTFail(_ message: String = "") {
+      var message = message
+      attachHostApplicationWarningIfNeeded(&message)
       guard
         let currentTestCase = XCTCurrentTestCase,
         let XCTIssue = NSClassFromString("XCTIssue")
@@ -45,6 +47,8 @@
     ///   results.
     @_disfavoredOverload
     public func XCTFail(_ message: String = "", file: StaticString, line: UInt) {
+      var message = message
+      attachHostApplicationWarningIfNeeded(&message)
       _XCTFailureHandler(nil, true, "\(file)", line, "\(message.isEmpty ? "failed" : message)", nil)
     }
 
@@ -55,6 +59,66 @@
       dlsym(dlopen(nil, RTLD_LAZY), "_XCTFailureHandler"),
       to: XCTFailureHandler.self
     )
+
+    private func attachHostApplicationWarningIfNeeded(_ message: inout String) {
+      guard
+        _XCTIsTesting,
+        Bundle.main.bundleIdentifier != "com.apple.dt.xctest.tool"
+      else { return }
+
+      let callStack = Thread.callStackSymbols
+
+      // Detect when synchronous test exists in stack.
+      guard callStack.allSatisfy({ frame in !frame.contains("  XCTestCore ") })
+      else { return }
+
+      // Detect when asynchronous test exists in stack.
+      guard callStack.allSatisfy({ frame in !isTestFrame(frame) })
+      else { return }
+
+      if !message.contains(where: \.isNewline) {
+        message.append(" …")
+      }
+
+      message.append(
+        """
+
+
+        ━━┉┅
+        Note: This failure was emitted from tests running in a host application\
+        \(Bundle.main.bundleIdentifier.map { " (\($0))" }).
+
+        This can lead to false positives, where failures could have emitted from live application \
+        code at launch time, and not from the current test.
+
+        For more information (and workarounds), see "Testing gotchas":
+
+        https://pointfreeco.github.io/swift-dependencies/main/documentation/dependencies/testing#Testing-gotchas
+        """
+      )
+    }
+
+    func isTestFrame(_ frame: String) -> Bool {
+      // Regular expression to detect and demangle an XCTest case frame:
+      //
+      //  1. `(?<=\$s)`: Starts with "$s" (stable mangling)
+      //  2. `\d{1,3}`: Some numbers (the class name length or the module name length)
+      //  3. `.*`: The class name, or module name + class name length + class name
+      //  4. `C`: The class type identifier
+      //  5. `(?=\d{1,3}test.*yy(Ya)?K?F)`: The function name length, a function that starts with
+      //     `test`, has no arguments (`y`), returns Void (`y`), and is a function (`F`), potentially
+      //     async (`Ya`), throwing (`K`), or both.
+      let mangledTestFrame = #"(?<=\$s)\d{1,3}.*C(?=\d{1,3}test.*yy(Ya)?K?F)"#
+
+      guard let XCTestCase = NSClassFromString("XCTestCase")
+      else { return false }
+
+      return frame.range(of: mangledTestFrame, options: .regularExpression)
+        .map {
+          (_typeByName(String(frame[$0])) as? NSObject.Type)?.isSubclass(of: XCTestCase) ?? false
+        }
+        ?? false
+    }
   #elseif canImport(XCTest)
     // NB: It seems to be safe to import XCTest on Linux
     @_exported import func XCTest.XCTFail
