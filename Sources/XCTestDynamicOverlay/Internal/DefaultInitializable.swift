@@ -22,10 +22,12 @@ extension UInt16: _DefaultInitializable {}
 extension UInt32: _DefaultInitializable {}
 extension UInt64: _DefaultInitializable {}
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncStream: _DefaultInitializable {
   init() { self.init { $0.finish() } }
 }
 
+@available(macOS 10.15, iOS 13.0, watchOS 6.0, tvOS 13.0, *)
 extension AsyncThrowingStream: _DefaultInitializable where Failure == Error {
   init() { self.init { $0.finish(throwing: CancellationError()) } }
 }

@@ -29,7 +29,7 @@ import Foundation
           )?
           .takeUnretainedValue()
       else {
-        if !_XCTIsTesting {
+        if #available(macOS 10.14, iOS 12.0, watchOS 5.0, tvOS 12.0, *), !_XCTIsTesting {
           runtimeWarn(message)
         }
         return
@@ -86,7 +86,7 @@ import Foundation
 
         ━━┉┅
         Note: This failure was emitted from tests running in a host application\
-        \(Bundle.main.bundleIdentifier.map { " (\($0))" }).
+        \(Bundle.main.bundleIdentifier.map { " (\($0))" } ?? " (nil)").
 
         This can lead to false positives, where failures could have emitted from live application \
         code at launch time, and not from the current test.
