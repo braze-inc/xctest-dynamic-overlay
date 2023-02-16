@@ -29,3 +29,13 @@ let package = Package(
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
   )
 #endif
+
+// Enable Library Evolution
+package.targets = package.targets
+  .map { target in
+    if target.name.hasSuffix("Tests") {
+      return target
+    }
+    target.swiftSettings = (target.swiftSettings ?? []) + [.unsafeFlags(["-enable-library-evolution"])]
+    return target
+}
